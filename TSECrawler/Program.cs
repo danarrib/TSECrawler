@@ -5,6 +5,7 @@ using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
+using System.IO.Compression;
 
 namespace TSECrawler
 {
@@ -136,22 +137,56 @@ namespace TSECrawler
                                     if (!Directory.Exists(diretorioHash))
                                         Directory.CreateDirectory(diretorioHash);
 
-                                    // Para cada arquivo desse hash, baixar e salvar localmente
-                                    foreach (var arquivo in objHash.nmarq)
+                                    string arquivoZip = diretorioHash + @"\pacote.zip";
+                                    if (!File.Exists(arquivoZip))
                                     {
-                                        string urlArquivoABaixar = urlTSE + @"dados/" + UF.ToLower() + @"/" + municipio.cd + @"/" + zonaEleitoral.cd + @"/" + secao.ns + @"/" + objHash.hash + @"/" + arquivo;
-                                        if (!File.Exists(diretorioHash + @"\" + arquivo) && !string.IsNullOrWhiteSpace(arquivo))
+                                        // Para cada arquivo desse hash, baixar e salvar localmente
+                                        foreach (var arquivo in objHash.nmarq)
                                         {
-                                            try
+                                            string urlArquivoABaixar = urlTSE + @"dados/" + UF.ToLower() + @"/" + municipio.cd + @"/" + zonaEleitoral.cd + @"/" + secao.ns + @"/" + objHash.hash + @"/" + arquivo;
+                                            if (!File.Exists(diretorioHash + @"\" + arquivo) && !string.IsNullOrWhiteSpace(arquivo))
                                             {
-                                                BaixarArquivo(urlArquivoABaixar, diretorioHash + @"\" + arquivo);
+                                                try
+                                                {
+                                                    BaixarArquivo(urlArquivoABaixar, diretorioHash + @"\" + arquivo);
+                                                }
+                                                catch (Exception ex)
+                                                {
+                                                    throw new Exception("Erro ao baixar o arquivo " + arquivo + " da " + secao.ns + ", zona " + zonaEleitoral.cd + ", município " + municipio.cd + ", UF " + UF, ex);
+                                                }
                                             }
-                                            catch (Exception ex)
-                                            {
-                                                throw new Exception("Erro ao baixar o arquivo " + arquivo + " da " + secao.ns + ", zona " + zonaEleitoral.cd + ", município " + municipio.cd + ", UF " + UF, ex);
-                                            }
-
                                         }
+
+                                        // Se o Zip Temporário ainda existe, é porque o processo foi interrompido na metade. Excluir.
+                                        if (File.Exists(arquivoZip + "tmp"))
+                                        {
+                                            File.Delete(arquivoZip + "tmp");
+                                        }
+
+                                        // Nos interessa apenas o arquivo com extensão IMGBU, mas é bom guardar os demais arquivos.
+                                        // Então vamos criar um zip com todos eles, e excluir os arquivos originais depois
+                                        using (ZipArchive zip = ZipFile.Open(arquivoZip + "tmp", ZipArchiveMode.Create))
+                                        {
+                                            foreach (var arquivo in objHash.nmarq)
+                                            {
+                                                if (!string.IsNullOrWhiteSpace(arquivo))
+                                                {
+                                                    zip.CreateEntryFromFile(diretorioHash + @"\" + arquivo, arquivo);
+                                                }
+                                            }
+                                        }
+
+                                        // Todos os arquivos estão compactados. Excluir agora os originais (exceto o .imgbu)
+                                        foreach (var arquivo in objHash.nmarq)
+                                        {
+                                            if (!arquivo.ToLower().Contains(".imgbu"))
+                                            {
+                                                File.Delete(diretorioHash + @"\" + arquivo);
+                                            }
+                                        }
+
+                                        // Arquivos excluidos. Renomear o ZIP temporário
+                                        File.Move(arquivoZip + "tmp", arquivoZip);
                                     }
                                 }
                             }

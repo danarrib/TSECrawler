@@ -179,7 +179,7 @@ namespace TSECrawler
                                         // Todos os arquivos estão compactados. Excluir agora os originais (exceto o .imgbu)
                                         foreach (var arquivo in objHash.nmarq)
                                         {
-                                            if (!arquivo.ToLower().Contains(".imgbu"))
+                                            if (!arquivo.ToLower().Contains(".imgbu") && !string.IsNullOrWhiteSpace(arquivo))
                                             {
                                                 File.Delete(diretorioHash + @"\" + arquivo);
                                             }

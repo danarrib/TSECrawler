@@ -12,6 +12,7 @@ namespace TSECrawler
 {
     internal class Program
     {
+        public const string Versao = "1.0";
         public static string diretorioLocalDados { get; set; }
         public static string urlTSE { get; set; }
         public static string IdPleito { get; set; }
@@ -30,7 +31,7 @@ namespace TSECrawler
             UFs.AddRange(new[] { "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS",
                 "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO", "ZZ" });
 
-            var textoAjuda = @"TSE Crawler - Programa para baixar arquivos do TSE.
+            var textoAjuda = @$"TSE Crawler Versão {Versao} - Programa para baixar arquivos do TSE.
 
 Parametros:
     -baixartudo         Faz com que o programa baixe todos os arquivos de urna.
@@ -118,13 +119,13 @@ Parametros:
                 }
             }
 
-            var textoApresentacao = $@"TSE Crawler - Programa para baixar arquivos do TSE.
+            var textoApresentacao = $@"TSE Crawler Versão {Versao} - Programa para baixar arquivos do TSE.
+
 Salvando no diretório:      {diretorioLocalDados}
 Baixando todos os arquivos: {(!baixarApenasBu).SimOuNao()}
 Forçar download:            {forcarDownload.SimOuNao()}
 Pleito:                     {IdPleito}
 UFs:                        {string.Join(",", UFs)}
-
 ";
             Console.WriteLine(textoApresentacao);
         }

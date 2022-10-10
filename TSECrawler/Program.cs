@@ -14,16 +14,21 @@ namespace TSECrawler
         public const string diretorioLocalDados = @"D:\Downloads\Urnas\";
         public const string urlTSE = @"https://resultados.tse.jus.br/oficial/ele2022/arquivo-urna/406/";
 
+        /// <summary>
+        /// Se true, vai baixar apenas o bu e o imgbu (boletim de urna e imagem). Se falso, vai baixar todos os arquivos da urna e cria um zip com eles.
+        /// </summary>
+        public const bool baixarApenasBu = true;
+
+        /// <summary>
+        /// Se true, força o download mesmo que o arquivo já exista localmente.
+        /// </summary>
+        public const bool forcarDownload = false;
+
         static void Main(string[] args)
         {
             List<string> UFs = new List<string>();
-            UFs.AddRange(new[] { "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO" });
-            
-            // Já foram baixados
-            UFs.Remove("AC");
-            UFs.Remove("AL");
-            UFs.Remove("AP");
-            UFs.Remove("AM");
+            UFs.AddRange(new[] { "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS",
+                "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO" });
 
             // Para cada estado
             foreach (var UF in UFs)
@@ -37,7 +42,7 @@ namespace TSECrawler
                 string urlConfiguracaoUF = urlTSE + @"config/" + UF.ToLower() + @"/" + UF.ToLower() + @"-p000406-cs.json";
                 string jsonConfiguracaoUF = string.Empty;
 
-                if (!File.Exists(diretorioUF + @"\config.json"))
+                if (!File.Exists(diretorioUF + @"\config.json") || forcarDownload)
                 {
                     try
                     {
@@ -57,7 +62,6 @@ namespace TSECrawler
                     jsonConfiguracaoUF = File.ReadAllText(diretorioUF + @"\config.json");
                 }
 
-
                 UFConfig configuracaoUF;
                 try
                 {
@@ -68,28 +72,52 @@ namespace TSECrawler
                     throw new Exception("Erro ao interpretar o JSON de configuração da UF " + UF, ex);
                 }
 
-                // Para cada ABR ?
+                // Primeiro levantar a quantidade de seções a processar
+                int qtdSecoes = 0;
+                foreach (var abr in configuracaoUF.abr)
+                    foreach (var municipio in abr.mu)
+                        foreach (var zonaEleitoral in municipio.zon)
+                            foreach (var secao in zonaEleitoral.sec)
+                                qtdSecoes++;
+
+                // Agora processar as seções
+                int secoesProcessadas = 0;
+
+                // Para cada ABR (seja lá o que isso signifique)
                 foreach (var abr in configuracaoUF.abr)
                 {
+                    var muAtual = 0;
+                    var muCont = abr.mu.Count;
+                    // Para cada município
                     foreach (var municipio in abr.mu)
                     {
+                        muAtual++;
                         // Criar um diretório para o município
                         string diretorioMunicipio = diretorioUF + @"\" + municipio.cd;
                         if (!Directory.Exists(diretorioMunicipio))
                             Directory.CreateDirectory(diretorioMunicipio);
 
+                        var zeAtual = 0;
+                        var zeCont = municipio.zon.Count;
                         // Para cada Zona eleitoral
                         foreach (var zonaEleitoral in municipio.zon)
                         {
+                            zeAtual++;
                             // Criar um diretório para a zona eleitoral
                             string diretorioZona = diretorioMunicipio + @"\" + zonaEleitoral.cd;
                             if (!Directory.Exists(diretorioZona))
                                 Directory.CreateDirectory(diretorioZona);
 
+                            var seAtual = 0;
+                            var seCont = zonaEleitoral.sec.Count;
                             // Para cada Seçao desta zona eleitoral
                             foreach (var secao in zonaEleitoral.sec)
                             {
-                                Console.WriteLine($"UF {UF}, Mun {municipio.cd} {municipio.nm}, Zona {zonaEleitoral.cd}, Seção {secao.ns}");
+                                seAtual++;
+                                secoesProcessadas++;
+                                var percentualProgresso = (secoesProcessadas.ToDecimal() / qtdSecoes.ToDecimal()) * 100;
+                                Console.WriteLine($"{percentualProgresso:N2}% - Baixando UF {UF} - Munic {municipio.cd} {municipio.nm} - Zona {zonaEleitoral.cd} - Seção {secao.ns}. M {muAtual}/{muCont}, Z {zeAtual}/{zeCont}, S {seAtual}/{seCont}.");
+
                                 // Criar um diretório para a seção eleitoral
                                 string diretorioSecao = diretorioZona + @"\" + secao.ns;
                                 if (!Directory.Exists(diretorioSecao))
@@ -99,7 +127,7 @@ namespace TSECrawler
                                 string urlConfiguracaoSecao = urlTSE + @"dados/" + UF.ToLower() + @"/" + municipio.cd + @"/" + zonaEleitoral.cd + @"/" + secao.ns + @"/p000406-" + UF.ToLower() + @"-m" + municipio.cd + @"-z" + zonaEleitoral.cd + @"-s" + secao.ns + @"-aux.json";
                                 string jsonConfiguracaoSecao = string.Empty;
 
-                                if (!File.Exists(diretorioSecao + @"\config.json"))
+                                if (!File.Exists(diretorioSecao + @"\config.json") || forcarDownload)
                                 {
                                     try
                                     {
@@ -137,18 +165,17 @@ namespace TSECrawler
                                     if (!Directory.Exists(diretorioHash))
                                         Directory.CreateDirectory(diretorioHash);
 
-                                    string arquivoZip = diretorioHash + @"\pacote.zip";
-                                    if (!File.Exists(arquivoZip))
+                                    if (baixarApenasBu)
                                     {
-                                        // Para cada arquivo desse hash, baixar e salvar localmente
-                                        foreach (var arquivo in objHash.nmarq)
+                                        foreach (var arquivo in objHash.nmarq.FindAll(x => x.Contains(".imgbu") || x.Contains(".bu")))
                                         {
                                             string urlArquivoABaixar = urlTSE + @"dados/" + UF.ToLower() + @"/" + municipio.cd + @"/" + zonaEleitoral.cd + @"/" + secao.ns + @"/" + objHash.hash + @"/" + arquivo;
-                                            if (!File.Exists(diretorioHash + @"\" + arquivo) && !string.IsNullOrWhiteSpace(arquivo))
+                                            var caminhoArquivo = diretorioHash + @"\" + arquivo;
+                                            if (!File.Exists(caminhoArquivo) && !string.IsNullOrWhiteSpace(arquivo))
                                             {
                                                 try
                                                 {
-                                                    BaixarArquivo(urlArquivoABaixar, diretorioHash + @"\" + arquivo);
+                                                    BaixarArquivo(urlArquivoABaixar, caminhoArquivo);
                                                 }
                                                 catch (Exception ex)
                                                 {
@@ -156,37 +183,61 @@ namespace TSECrawler
                                                 }
                                             }
                                         }
-
-                                        // Se o Zip Temporário ainda existe, é porque o processo foi interrompido na metade. Excluir.
-                                        if (File.Exists(arquivoZip + "tmp"))
+                                    }
+                                    else
+                                    {
+                                        string arquivoZip = diretorioHash + @"\pacote.zip";
+                                        if (!File.Exists(arquivoZip))
                                         {
-                                            File.Delete(arquivoZip + "tmp");
-                                        }
-
-                                        // Nos interessa apenas o arquivo com extensão IMGBU, mas é bom guardar os demais arquivos.
-                                        // Então vamos criar um zip com todos eles, e excluir os arquivos originais depois
-                                        using (ZipArchive zip = ZipFile.Open(arquivoZip + "tmp", ZipArchiveMode.Create))
-                                        {
+                                            // Para cada arquivo desse hash, baixar e salvar localmente
                                             foreach (var arquivo in objHash.nmarq)
                                             {
-                                                if (!string.IsNullOrWhiteSpace(arquivo))
+                                                string urlArquivoABaixar = urlTSE + @"dados/" + UF.ToLower() + @"/" + municipio.cd + @"/" + zonaEleitoral.cd + @"/" + secao.ns + @"/" + objHash.hash + @"/" + arquivo;
+                                                var caminhoArquivo = diretorioHash + @"\" + arquivo;
+                                                if (!File.Exists(caminhoArquivo) && !string.IsNullOrWhiteSpace(arquivo))
                                                 {
-                                                    zip.CreateEntryFromFile(diretorioHash + @"\" + arquivo, arquivo);
+                                                    try
+                                                    {
+                                                        BaixarArquivo(urlArquivoABaixar, caminhoArquivo);
+                                                    }
+                                                    catch (Exception ex)
+                                                    {
+                                                        throw new Exception("Erro ao baixar o arquivo " + arquivo + " da " + secao.ns + ", zona " + zonaEleitoral.cd + ", município " + municipio.cd + ", UF " + UF, ex);
+                                                    }
                                                 }
                                             }
-                                        }
 
-                                        // Todos os arquivos estão compactados. Excluir agora os originais (exceto o .imgbu)
-                                        foreach (var arquivo in objHash.nmarq)
-                                        {
-                                            if (!arquivo.ToLower().Contains(".imgbu") && !string.IsNullOrWhiteSpace(arquivo))
+                                            // Se o Zip Temporário ainda existe, é porque o processo foi interrompido na metade. Excluir.
+                                            if (File.Exists(arquivoZip + "tmp"))
                                             {
-                                                File.Delete(diretorioHash + @"\" + arquivo);
+                                                File.Delete(arquivoZip + "tmp");
                                             }
-                                        }
 
-                                        // Arquivos excluidos. Renomear o ZIP temporário
-                                        File.Move(arquivoZip + "tmp", arquivoZip);
+                                            // Nos interessa apenas o arquivo com extensão IMGBU, mas é bom guardar os demais arquivos.
+                                            // Então vamos criar um zip com todos eles, e excluir os arquivos originais depois
+                                            using (ZipArchive zip = ZipFile.Open(arquivoZip + "tmp", ZipArchiveMode.Create))
+                                            {
+                                                foreach (var arquivo in objHash.nmarq)
+                                                {
+                                                    if (!string.IsNullOrWhiteSpace(arquivo))
+                                                    {
+                                                        zip.CreateEntryFromFile(diretorioHash + @"\" + arquivo, arquivo);
+                                                    }
+                                                }
+                                            }
+
+                                            // Todos os arquivos estão compactados. Excluir agora os originais (exceto o .imgbu)
+                                            foreach (var arquivo in objHash.nmarq)
+                                            {
+                                                if (!arquivo.ToLower().Contains(".imgbu") && !string.IsNullOrWhiteSpace(arquivo))
+                                                {
+                                                    File.Delete(diretorioHash + @"\" + arquivo);
+                                                }
+                                            }
+
+                                            // Arquivos excluidos. Renomear o ZIP temporário
+                                            File.Move(arquivoZip + "tmp", arquivoZip);
+                                        }
                                     }
                                 }
                             }
@@ -201,7 +252,7 @@ namespace TSECrawler
         public static void BaixarArquivo(string urlArquivo, string arquivoLocal)
         {
             int tentativas = 0;
-            int maxTentativas = 5;
+            int maxTentativas = 10;
             using (var client = new TSEWebClient())
             {
                 while (true)
@@ -214,18 +265,14 @@ namespace TSECrawler
                     }
                     catch (Exception ex)
                     {
-                        if (!ex.Message.Contains("Slow Down") && !ex.Message.Contains("timed out"))
-                        {
-                            throw ex;
-                        }
-
                         if (tentativas > maxTentativas)
                         {
                             throw ex;
                         }
 
                         // Esperar 1 minuto para tentar baixar novamente
-                        Console.WriteLine("Erro ao baixar o arquivo. Esperando 1 minuto para tentar novamente...");
+                        Console.WriteLine("Erro ao baixar o arquivo: " + ex.Message);
+                        Console.WriteLine("Esperando 1 minuto para tentar novamente...");
                         Thread.Sleep(60 * 1000);
                     }
 
@@ -237,7 +284,7 @@ namespace TSECrawler
         public static string BaixarTexto(string urlArquivo)
         {
             int tentativas = 0;
-            int maxTentativas = 5;
+            int maxTentativas = 10;
             using (var client = new TSEWebClient())
             {
                 while (true)
@@ -249,18 +296,14 @@ namespace TSECrawler
                     }
                     catch (Exception ex)
                     {
-                        if (!ex.Message.Contains("Slow Down") && !ex.Message.Contains("timed out"))
-                        {
-                            throw ex;
-                        }
-
                         if (tentativas > maxTentativas)
                         {
                             throw ex;
                         }
 
                         // Esperar 1 minuto para tentar baixar novamente
-                        Console.WriteLine("Erro ao baixar texto. Esperando 1 minuto para tentar novamente...");
+                        Console.WriteLine("Erro ao baixar texto do arquivo: " + ex.Message);
+                        Console.WriteLine("Esperando 1 minuto para tentar novamente...");
                         Thread.Sleep(60 * 1000);
                     }
 
@@ -270,12 +313,20 @@ namespace TSECrawler
         }
     }
 
+    public static class Extensions
+    {
+        public static decimal ToDecimal(this int value)
+        {
+            return Convert.ToDecimal(value);
+        }
+    }
+
     public class UFConfig
     {
         public string dg { get; set; } // Data da apuração ? "02/10/2022"
         public string hg { get; set; } // Hora da apuração ? "19:27:49"
         public string f { get; set; } // Não sei ? "0"
-        public string cdp { get; set; } // Não sei ? "406"
+        public string cdp { get; set; } // Código do Pleito "406"
         public List<ABR> abr { get; set; } // Não sei o que significa ABR, mas a lista de municípios está dentro
     }
 

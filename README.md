@@ -4,11 +4,28 @@ Um programa feito para baixar os arquivos de boletins de urna de todas as seçõ
 
 Atenção: Este programa não processa arquivos, ele apenas faz o download. Para processar os boletins de urna, você pode se interessar pelo [TSE Parser](https://github.com/danarrib/TSEParser).
 
+## Como usar
+
+1. Faça o download da [última release](https://github.com/danarrib/TSECrawler/releases) do programa.
+
+2. Descompacte o pacote onde achar mais conveniente.
+
+3. Execute o executável. 
+
+4. Todos os arquivos .imgbu e .bu serão baixados e salvos no mesmo diretório onde o executável está.
+
+5. Caso queira, você pode especificar alguns parâmetros para o programa. Para saber os parâmetros disponíveis, execute a seguinte linha de comando no diretório do executável:
+   `TSECrawler.exe -ajuda`
+
+
+
+## Funcionamento
+
 O TSE Crawler funciona da seguinte forma:
 
-- Especificar o diretório onde deseja salvar os arquivos na constante `diretorioLocalDados`. (por padrão, é `D:\Downloads\Urnas\`)
+- Especificar o diretório onde deseja salvar os arquivos na constante `diretorioLocalDados`. (por padrão, é o mesmo diretório onde o programa está sendo executado)
 
-- Especificar se deseja baixar apenas os boletins de urna, ou todos os arquivos da urna definido o valor da constante `baixarApenasBu` 
+- Especificar se deseja baixar apenas os boletins de urna, ou todos os arquivos da urna usando o parâmetro `-baixartudo` 
 
 - O programa tem uma lista de UFs (Unidades da Federação, estados como SP, RJ, PR, etc). Para cada UF, o programa irá:
   

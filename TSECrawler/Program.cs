@@ -6,29 +6,140 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.IO.Compression;
+using System.Linq;
 
 namespace TSECrawler
 {
     internal class Program
     {
-        public const string diretorioLocalDados = @"D:\Downloads\Urnas\";
-        public const string urlTSE = @"https://resultados.tse.jus.br/oficial/ele2022/arquivo-urna/406/";
-
-        /// <summary>
-        /// Se true, vai baixar apenas o bu e o imgbu (boletim de urna e imagem). Se falso, vai baixar todos os arquivos da urna e cria um zip com eles.
-        /// </summary>
-        public const bool baixarApenasBu = true;
-
-        /// <summary>
-        /// Se true, força o download mesmo que o arquivo já exista localmente.
-        /// </summary>
-        public const bool forcarDownload = false;
-
-        static void Main(string[] args)
+        public static string diretorioLocalDados { get; set; }
+        public static string urlTSE { get; set; }
+        public static string IdPleito { get; set; }
+        public static bool baixarApenasBu { get; set; }
+        public static bool forcarDownload { get; set; }
+        public static List<string> UFs { get; set; }
+        private static void ProcessarParametros(string[] args)
         {
-            List<string> UFs = new List<string>();
+            // Inicializar os valores padrão
+            diretorioLocalDados = AppDomain.CurrentDomain.BaseDirectory + @"\";
+            IdPleito = "406";
+            urlTSE = @"https://resultados.tse.jus.br/oficial/ele2022/arquivo-urna/" + IdPleito + @"/";
+            baixarApenasBu = true;
+            forcarDownload = false;
+            UFs = new List<string>();
             UFs.AddRange(new[] { "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS",
                 "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO", "ZZ" });
+
+            var textoAjuda = @"TSE Crawler - Programa para baixar arquivos do TSE.
+
+Parametros:
+    -baixartudo         Faz com que o programa baixe todos os arquivos de urna.
+                        (por padrão, apenas os arquivos *.bu e *.imgbu são baixados)
+
+    -forcardownload     Faz com que o programa baixe novamente os arquivos que já foram baixados.
+                        (por padrão, o programa baixa apenas os arquivos que não existem localmente)
+
+    -pleito=[IdPleito]  Especifica o número do pleito. (por padrão é 406)
+
+    -ufs=[ListaDeUFs]   Especifica quais UFs deverão ser baixadas. Lista separada por vírgulas (SP,RJ,MA).
+                        (por padrão, todas as UFs são baixadas, inclusive a ""ZZ"" (Exterior))
+
+    -saida=[Diretorio]  Especifica o diretório onde os arquivos serão salvos.
+                        (por padrão, irá baixar no diretório atual).
+
+    -ajuda, -h, -?      Exibe esta mensagem.
+
+";
+
+            if (args == null)
+            {
+                return;
+            }
+
+            foreach (var arg in args)
+            {
+                if (arg.ToLower().Contains("-ajuda") || arg.ToLower().Contains("-h") || arg.ToLower().Contains("-?"))
+                {
+                    Console.WriteLine(textoAjuda);
+                    throw new Exception("Executar o programa sem nenhum argumento irá baixar todas as UFs no diretório atual.");
+                }
+                else if (arg.ToLower() == "-baixartudo")
+                {
+                    baixarApenasBu = false;
+                }
+                else if (arg.ToLower() == "-forcardownload")
+                {
+                    forcarDownload = true;
+                }
+                else if (arg.ToLower().Contains("-pleito="))
+                {
+                    var arr = arg.Split("=");
+                    if (arr.Count() != 2)
+                    {
+                        Console.WriteLine(@"Argumento ""pleito"" informado incorretamente. Favor usar ""-pleito=406"", sendo neste caso 406 o número do pleito.");
+                        throw new Exception("Erro ao executar o programa. Abortando.");
+                    }
+                    IdPleito = arr[1];
+                    urlTSE = @"https://resultados.tse.jus.br/oficial/ele2022/arquivo-urna/" + IdPleito + @"/";
+                }
+                else if (arg.ToLower().Contains("-ufs="))
+                {
+                    var arr = arg.Split("=");
+                    if (arr.Count() != 2)
+                    {
+                        Console.WriteLine(@"Argumento ""ufs"" informado incorretamente. Favor usar ""-ufs=SP,RJ,MA,BA"", informando as UFs desejadas e separando-as com vírgula.");
+                        throw new Exception("Erro ao executar o programa. Abortando.");
+                    }
+                    var arrUFs = arr[1].Split(",");
+                    UFs.Clear();
+                    foreach (var uf in arrUFs)
+                    {
+                        UFs.Add(uf.ToUpper());
+                    }
+                }
+                else if (arg.ToLower().StartsWith("-saida="))
+                {
+                    var arr = arg.Split("=");
+                    if (arr.Count() != 2)
+                    {
+                        Console.WriteLine(@"Argumento ""saida"" inválido. Favor usar ""-saida=C:\DiretorioDeSaida"".");
+                        throw new Exception("Erro ao executar o programa. Abortando.");
+                    }
+
+                    if (!Directory.Exists(arr[1]))
+                    {
+                        Console.WriteLine(@$"Argumento ""saida"" inválido. Diretório ""{arr[1]}"" não existe.");
+                        throw new Exception("Erro ao executar o programa. Abortando.");
+                    }
+
+                    diretorioLocalDados = arr[1];
+                    if (!diretorioLocalDados.EndsWith(@"\"))
+                        diretorioLocalDados += @"\";
+                }
+            }
+
+            var textoApresentacao = $@"TSE Crawler - Programa para baixar arquivos do TSE.
+Salvando no diretório:      {diretorioLocalDados}
+Baixando todos os arquivos: {(!baixarApenasBu).SimOuNao()}
+Forçar download:            {forcarDownload.SimOuNao()}
+Pleito:                     {IdPleito}
+UFs:                        {string.Join(",", UFs)}
+
+";
+            Console.WriteLine(textoApresentacao);
+        }
+
+        static int Main(string[] args)
+        {
+            try
+            {
+                ProcessarParametros(args);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return -1;
+            }
 
             // Para cada estado
             foreach (var UF in UFs)
@@ -247,6 +358,7 @@ namespace TSECrawler
             }
 
             Console.WriteLine("Processo finalizou com sucesso.");
+            return 0;
         }
 
         public static void BaixarArquivo(string urlArquivo, string arquivoLocal)
@@ -313,79 +425,5 @@ namespace TSECrawler
         }
     }
 
-    public static class Extensions
-    {
-        public static decimal ToDecimal(this int value)
-        {
-            return Convert.ToDecimal(value);
-        }
-    }
 
-    public class UFConfig
-    {
-        public string dg { get; set; } // Data da apuração ? "02/10/2022"
-        public string hg { get; set; } // Hora da apuração ? "19:27:49"
-        public string f { get; set; } // Não sei ? "0"
-        public string cdp { get; set; } // Código do Pleito "406"
-        public List<ABR> abr { get; set; } // Não sei o que significa ABR, mas a lista de municípios está dentro
-    }
-
-    public class ABR
-    {
-        public string cd { get; set; } // Código da UF "AP"
-        public string ds { get; set; } // Descrição da UF "AMAPÁ"
-        public List<Municipio> mu { get; set; } // Lista de municípios
-    }
-
-    public class Municipio
-    {
-        public string cd { get; set; } // Código do município "06050"
-        public string nm { get; set; } // Nome do Município
-        public List<ZonaEleitoral> zon { get; set; } // Zonas eleitorais do Município
-
-    }
-
-    public class ZonaEleitoral
-    {
-        public string cd { get; set; } // Código da zona eleitoral "0002"
-        public List<SecaoEleitoral> sec { get; set; } // Seção eleitoral
-    }
-
-    public class SecaoEleitoral
-    {
-        public string ns { get; set; } // Número da Seção eleitoral "0001"
-        public string nsp { get; set; } // Número da Seção eleitoral "0001" (repetido porque?)
-    }
-
-    public class BoletimUrna
-    {
-        public string dg { get; set; } // Data da apuração? "02/10/2022"
-        public string hg { get; set; } // Hora da apuração? "23:27:25"
-        public string f { get; set; } // Não sei? "0"
-        public string st { get; set; } // Situação? "Totalizada"
-        public string ds { get; set; } // Não sei? ""
-        public List<BoletimUrnaHash> hashes { get; set; } // Lista de Hashes
-    }
-
-    public class BoletimUrnaHash
-    {
-        public string hash { get; set; } // Hash "534f753676357056516e4a42384e376c77544b32533257562b794a2d4968375a6e7a654f504b6746762b493d"
-        public string dr { get; set; } // Data do hash? "02/10/2022"
-        public string hg { get; set; } // Hora do hash? "19:20:08"
-        public string st { get; set; } // Situação? "Totalizado"
-        public string ds { get; set; } // Não sei? ""
-        public List<string> nmarq { get; set; } // Lista dos nomes dos arquivos
-    }
-
-    public class TSEWebClient : WebClient
-    {
-        protected override WebRequest GetWebRequest(Uri uri)
-        {
-            int itimeout = Convert.ToInt32(TimeSpan.FromSeconds(60).TotalMilliseconds);
-            WebRequest w = base.GetWebRequest(uri);
-            w.Timeout = itimeout;
-            ((HttpWebRequest)w).ReadWriteTimeout = itimeout;
-            return w;
-        }
-    }
 }

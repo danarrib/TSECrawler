@@ -18,15 +18,24 @@ namespace TSECrawler
         public static string IdPleito { get; set; }
         public static bool baixarApenasBu { get; set; }
         public static bool forcarDownload { get; set; }
+        public static bool excluirPacoteZip { get; set; }
         public static List<string> UFs { get; set; }
         private static void ProcessarParametros(string[] args)
         {
             // Inicializar os valores padrão
-            diretorioLocalDados = AppDomain.CurrentDomain.BaseDirectory + @"\";
+            diretorioLocalDados = AppDomain.CurrentDomain.BaseDirectory;
+            if (!diretorioLocalDados.EndsWith(@"\"))
+                diretorioLocalDados += @"\";
+
             IdPleito = "406";
             urlTSE = @"https://resultados.tse.jus.br/oficial/ele2022/arquivo-urna/" + IdPleito + @"/";
+
             baixarApenasBu = true;
+
             forcarDownload = false;
+
+            excluirPacoteZip = false;
+
             UFs = new List<string>();
             UFs.AddRange(new[] { "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS",
                 "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO", "ZZ" });
@@ -36,6 +45,8 @@ namespace TSECrawler
 Parametros:
     -baixartudo         Faz com que o programa baixe todos os arquivos de urna.
                         (por padrão, apenas os arquivos *.bu e *.imgbu são baixados)
+
+    -excluirpacotezip   Exclui o pacote zip de cada seção, caso exista.
 
     -forcardownload     Faz com que o programa baixe novamente os arquivos que já foram baixados.
                         (por padrão, o programa baixa apenas os arquivos que não existem localmente)
@@ -67,6 +78,10 @@ Parametros:
                 else if (arg.ToLower() == "-baixartudo")
                 {
                     baixarApenasBu = false;
+                }
+                else if (arg.ToLower() == "-excluirpacotezip")
+                {
+                    excluirPacoteZip = true;
                 }
                 else if (arg.ToLower() == "-forcardownload")
                 {
@@ -124,6 +139,7 @@ Parametros:
 Salvando no diretório:      {diretorioLocalDados}
 Baixando todos os arquivos: {(!baixarApenasBu).SimOuNao()}
 Forçar download:            {forcarDownload.SimOuNao()}
+Excluir Zip:                {excluirPacoteZip.SimOuNao()}
 Pleito:                     {IdPleito}
 UFs:                        {string.Join(",", UFs)}
 ";
@@ -271,13 +287,17 @@ UFs:                        {string.Join(",", UFs)}
                                         if (!Directory.Exists(diretorioHash))
                                             Directory.CreateDirectory(diretorioHash);
 
+                                        string arquivoZip = diretorioHash + @"\pacote.zip";
+                                        if (excluirPacoteZip && File.Exists(arquivoZip))
+                                            File.Delete(arquivoZip);
+
                                         if (baixarApenasBu)
                                         {
                                             foreach (var arquivo in objHash.nmarq.FindAll(x => x.Contains(".imgbu") || x.Contains(".bu")))
                                             {
                                                 string urlArquivoABaixar = urlTSE + @"dados/" + UF.ToLower() + @"/" + municipio.cd + @"/" + zonaEleitoral.cd + @"/" + secao.ns + @"/" + objHash.hash + @"/" + arquivo;
                                                 var caminhoArquivo = diretorioHash + @"\" + arquivo;
-                                                if (!File.Exists(caminhoArquivo) && !string.IsNullOrWhiteSpace(arquivo))
+                                                if ((!File.Exists(caminhoArquivo) || forcarDownload) && !string.IsNullOrWhiteSpace(arquivo))
                                                 {
                                                     try
                                                     {
@@ -292,15 +312,17 @@ UFs:                        {string.Join(",", UFs)}
                                         }
                                         else
                                         {
-                                            string arquivoZip = diretorioHash + @"\pacote.zip";
-                                            if (!File.Exists(arquivoZip))
+                                            if (!File.Exists(arquivoZip) || forcarDownload)
                                             {
+                                                if (File.Exists(arquivoZip))
+                                                    File.Delete(arquivoZip);
+
                                                 // Para cada arquivo desse hash, baixar e salvar localmente
                                                 foreach (var arquivo in objHash.nmarq)
                                                 {
                                                     string urlArquivoABaixar = urlTSE + @"dados/" + UF.ToLower() + @"/" + municipio.cd + @"/" + zonaEleitoral.cd + @"/" + secao.ns + @"/" + objHash.hash + @"/" + arquivo;
                                                     var caminhoArquivo = diretorioHash + @"\" + arquivo;
-                                                    if (!File.Exists(caminhoArquivo) && !string.IsNullOrWhiteSpace(arquivo))
+                                                    if ((!File.Exists(caminhoArquivo) || forcarDownload) && !string.IsNullOrWhiteSpace(arquivo))
                                                     {
                                                         try
                                                         {
@@ -335,7 +357,7 @@ UFs:                        {string.Join(",", UFs)}
                                                 // Todos os arquivos estão compactados. Excluir agora os originais (exceto o .imgbu)
                                                 foreach (var arquivo in objHash.nmarq)
                                                 {
-                                                    if (!arquivo.ToLower().Contains(".imgbu") && !string.IsNullOrWhiteSpace(arquivo))
+                                                    if (!arquivo.ToLower().Contains(".imgbu") && !arquivo.ToLower().Contains(".bu") && !string.IsNullOrWhiteSpace(arquivo))
                                                     {
                                                         File.Delete(diretorioHash + @"\" + arquivo);
                                                     }

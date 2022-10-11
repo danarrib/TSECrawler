@@ -17,15 +17,13 @@ Atenção: Este programa não processa arquivos, ele apenas faz o download. Para
 5. Caso queira, você pode especificar alguns parâmetros para o programa. Para saber os parâmetros disponíveis, execute a seguinte linha de comando no diretório do executável:
    `TSECrawler.exe -ajuda`
 
-
-
 ## Funcionamento
 
 O TSE Crawler funciona da seguinte forma:
 
-- Especificar o diretório onde deseja salvar os arquivos na constante `diretorioLocalDados`. (por padrão, é o mesmo diretório onde o programa está sendo executado)
+- Especificar o diretório onde deseja salvar os arquivos usando o parâmetro `-saida=[diretório]` (por padrão, é o mesmo diretório onde o programa está sendo executado).
 
-- Especificar se deseja baixar apenas os boletins de urna, ou todos os arquivos da urna usando o parâmetro `-baixartudo` 
+- Especificar se deseja baixar apenas os boletins de urna (.bu e .imgbu), ou todos os arquivos da urna, usando o parâmetro `-baixartudo` .
 
 - O programa tem uma lista de UFs (Unidades da Federação, estados como SP, RJ, PR, etc). Para cada UF, o programa irá:
   

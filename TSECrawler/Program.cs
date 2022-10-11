@@ -12,7 +12,7 @@ namespace TSECrawler
 {
     internal class Program
     {
-        public const string Versao = "1.0";
+        public const string Versao = "1.1";
         public static string diretorioLocalDados { get; set; }
         public static string urlTSE { get; set; }
         public static string IdPleito { get; set; }
@@ -47,6 +47,7 @@ Parametros:
                         (por padrão, apenas os arquivos *.bu e *.imgbu são baixados)
 
     -excluirpacotezip   Exclui o pacote zip de cada seção, caso exista.
+                        (útil caso tenha baixado tudo anteriormente, mas queira liberar espaço em disco)
 
     -forcardownload     Faz com que o programa baixe novamente os arquivos que já foram baixados.
                         (por padrão, o programa baixa apenas os arquivos que não existem localmente)

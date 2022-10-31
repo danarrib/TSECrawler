@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
 
 namespace TSECrawler
 {
@@ -151,6 +152,8 @@ UFs:                        {string.Join(",", UFs)}
         {
             try
             {
+                Console.OutputEncoding = Encoding.UTF8;
+
                 ProcessarParametros(args);
 
                 // Para cada estado
@@ -162,7 +165,7 @@ UFs:                        {string.Join(",", UFs)}
                         Directory.CreateDirectory(diretorioUF);
 
                     // Baixar do TSE o JSON com todas as Cidades, Zonas e Seções desta UF
-                    string urlConfiguracaoUF = urlTSE + @"config/" + UF.ToLower() + @"/" + UF.ToLower() + @"-p000406-cs.json";
+                    string urlConfiguracaoUF = $"{urlTSE}config/{UF.ToLower()}/{UF.ToLower()}-p000{IdPleito}-cs.json";
                     string jsonConfiguracaoUF = string.Empty;
 
                     if (!File.Exists(diretorioUF + @"\config.json") || forcarDownload)
@@ -247,7 +250,8 @@ UFs:                        {string.Join(",", UFs)}
                                         Directory.CreateDirectory(diretorioSecao);
 
                                     // Baixar o arquivo de configuração desta Seção
-                                    string urlConfiguracaoSecao = urlTSE + @"dados/" + UF.ToLower() + @"/" + municipio.cd + @"/" + zonaEleitoral.cd + @"/" + secao.ns + @"/p000406-" + UF.ToLower() + @"-m" + municipio.cd + @"-z" + zonaEleitoral.cd + @"-s" + secao.ns + @"-aux.json";
+//                                    string urlConfiguracaoSecao = urlTSE + @"dados/" + UF.ToLower() + @"/" + municipio.cd + @"/" + zonaEleitoral.cd + @"/" + secao.ns + @"/p000" + IdPleito + @"-" + UF.ToLower() + @"-m" + municipio.cd + @"-z" + zonaEleitoral.cd + @"-s" + secao.ns + @"-aux.json";
+                                    string urlConfiguracaoSecao = $"{urlTSE}dados/{UF.ToLower()}/{municipio.cd}/{zonaEleitoral.cd}/{secao.ns}/p000{IdPleito}-{UF.ToLower()}-m{municipio.cd}-z{zonaEleitoral.cd}-s{secao.ns}-aux.json";
                                     string jsonConfiguracaoSecao = string.Empty;
 
                                     if (!File.Exists(diretorioSecao + @"\config.json") || forcarDownload)
@@ -296,7 +300,8 @@ UFs:                        {string.Join(",", UFs)}
                                         {
                                             foreach (var arquivo in objHash.nmarq.FindAll(x => x.Contains(".imgbu") || x.Contains(".bu")))
                                             {
-                                                string urlArquivoABaixar = urlTSE + @"dados/" + UF.ToLower() + @"/" + municipio.cd + @"/" + zonaEleitoral.cd + @"/" + secao.ns + @"/" + objHash.hash + @"/" + arquivo;
+                                                //string urlArquivoABaixar = urlTSE + @"dados/" + UF.ToLower() + @"/" + municipio.cd + @"/" + zonaEleitoral.cd + @"/" + secao.ns + @"/" + objHash.hash + @"/" + arquivo;
+                                                string urlArquivoABaixar = $"{urlTSE}dados/{UF.ToLower()}/{municipio.cd}/{zonaEleitoral.cd}/{secao.ns}/{objHash.hash}/{arquivo}";
                                                 var caminhoArquivo = diretorioHash + @"\" + arquivo;
                                                 if ((!File.Exists(caminhoArquivo) || forcarDownload) && !string.IsNullOrWhiteSpace(arquivo))
                                                 {
